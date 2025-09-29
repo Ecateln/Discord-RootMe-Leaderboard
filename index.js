@@ -131,6 +131,8 @@ async function sendNewSolveMessage(user, solves, score_gained) {
     });
 }
 
+console.log("Script started!");
+
 const data = {};
 for (const username of config.usernames) {
     let [name, id, url_name] = username.split(':');
@@ -169,3 +171,4 @@ for (const username of config.usernames) {
 
 await sendLeaderboardMessage(Object.values(data));
 writeFileSync(config.cache_file, JSON.stringify(cache), 'utf8');
+console.log("Script completed!");
