@@ -59,7 +59,7 @@ async function sendLeaderboardMessage(users) {
     const description = users
         .sort((a, b) => b.score - a.score)
         .map((u, i) =>
-            `**${['🥇', '🥈', '🥉'][i] ?? i + 1 + '.'}** [${u.nom}](https://root-me.org/${u.nom}) - \`${u.score}\`pts - \`${u.validations.length}\` solves${u.validations.length != 0 ? ` - Last solve: <t:${u.validations.reduce((r, v) => Math.max(r, Math.round(new Date(v.date).getTime() / 1000)), 0)}:R>` : '' }`
+            `**${['🥇', '🥈', '🥉'][i] ?? i + 1 + '.'}** [${u.nom}](https://root-me.org/${encodeURIComponent(u.url_name)}) - \`${u.score}\`pts - \`${u.validations.length}\` solves${u.validations.length != 0 ? ` - Last solve: <t:${u.validations.reduce((r, v) => Math.max(r, Math.round(new Date(v.date).getTime() / 1000)), 0)}:R>` : ''}`
         ).join('\n');
 
     const edit_id = cache[":webhook_msg_id"];
@@ -87,8 +87,7 @@ async function sendLeaderboardMessage(users) {
                 }]
             }),
         }
-    )
-    .then(async r => {
+    ).then(async r => {
         const json = await r.json();
         if (!json.id) throw new Error("Failed to send leaderboard update: " + json);
         cache[":webhook_msg_id"] = json.id;
@@ -98,26 +97,30 @@ async function sendLeaderboardMessage(users) {
 
 const data = {};
 for (const username of config.usernames) {
-    const id = await getIdFromUsername(username).catch(err => {
-        console.error("Failed to get user id from username: " + username, err);
+    let [name, id, url_name] = username.split(':');
+
+    if (!id) id = await getIdFromUsername(name).catch(err => {
+        console.error("Failed to get user id from username: " + name, err);
         process.exit(1);
     });
 
     const d = await getUserData(id).catch(err => {
         console.error("Failed to fetch user data for id: " + id, err);
-        return cache[username];
+        return cache[name];
     });
 
     // const d = cache[username];
     if (!d) continue;
 
-    const previous_data = cache[username] ?? {};
+    d.url_name = url_name ?? name;
+
+    const previous_data = cache[name] ?? {};
     if (previous_data.nom != d.nom || previous_data.score != d.score) {
         // TODO: send an update message, with new solves and score gain, iff previous_data is not empty
-        cache[username] = d;
+        cache[name] = d;
     }
 
-    data[username] = d;
+    data[name] = d;
 }
 
 await sendLeaderboardMessage(Object.values(data));
