@@ -89,8 +89,44 @@ async function sendLeaderboardMessage(users) {
         }
     ).then(async r => {
         const json = await r.json();
-        if (!json.id) throw new Error("Failed to send leaderboard update: " + json);
+        if (!json.id) throw new Error("Failed to send leaderboard update: " + JSON.stringify(json));
         cache[":webhook_msg_id"] = json.id;
+        return json;
+    });
+}
+
+async function sendNewSolveMessage(user, solves, score_gained) {
+    if (!config.webhook_thread_id) return;
+
+    const description = `**Score gained**: \`${score_gained}\`pts\n**New rank**: \`#${user.position}\`\n${solves.map(s => `✦ \`${s.titre}\` - <t:${Math.round(new Date(s.date).getTime() / 1000)}:R>`).join('\n') }`;
+    const emotes = ["🎉", "🔥", "💪", "✨", "😎", "🏆", "🧠"];
+    const kaomojies = ["◝(ᵔᗜᵔ)◜", "٩(^ᗜ^ )و ´-", "ᐠ( ᐛ )ᐟ", "( ◡̀_◡́)ᕤ", "ദ്ദി(ᵔᗜᵔ)", "(•̀ᴗ•́ )و"];
+
+    return fetch(
+        config.webhook_url + "?wait=true&thread_id=" + config.webhook_thread_id,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                avatar_url: "https://images.seeklogo.com/logo-png/50/1/root-me-logo-png_seeklogo-505083.png",
+                username: "RootMe Leaderboard",
+                embeds: [{
+                    author: {
+                        name: user.nom,
+                        icon_url: "https://www.root-me.org/" + user.logo_url,
+                        url: "https://root-me.org/" + encodeURIComponent(user.url_name),
+                    },
+                    title: `\\${emotes[Math.floor(Math.random() * emotes.length)]} ${user.nom} just solved ${solves.length == 1 ? 'a new challenge' : 'new challenges' }! ${kaomojies[Math.floor(Math.random() * kaomojies.length)]}`,
+                    description,
+                    color: Math.floor(Math.random() * 0xFFFFFF),
+                    footer: { "text": "Made with 𖹭 by Tenclea" },
+                    timestamp: new Date().toISOString(),
+                }]
+            }),
+        }
+    ).then(async r => {
+        const json = await r.json();
+        if (!json.id) throw new Error(`Failed to send new solves from ${user.nom}: ` + JSON.stringify(json));
         return json;
     });
 }
@@ -104,23 +140,31 @@ for (const username of config.usernames) {
         process.exit(1);
     });
 
-    const d = await getUserData(id).catch(err => {
+    const user = await getUserData(id).catch(err => {
         console.error("Failed to fetch user data for id: " + id, err);
         return cache[name];
     });
 
-    // const d = cache[username];
-    if (!d) continue;
+    // const user = JSON.parse(JSON.stringify(cache[name]));
+    if (!user) continue;
 
-    d.url_name = url_name ?? name;
+    user.url_name = url_name ?? name;
 
     const previous_data = cache[name] ?? {};
-    if (previous_data.nom != d.nom || previous_data.score != d.score) {
-        // TODO: send an update message, with new solves and score gain, iff previous_data is not empty
-        cache[name] = d;
+    if (previous_data.nom != user.nom || previous_data.score != user.score) {
+        // Make sure that previous_data is not empty
+        if (Object.keys(previous_data).length !== 0) {
+            const new_solves = user.validations.filter(
+                v => !previous_data.validations.some(p => p.id_challenge === v.id_challenge && p.id_rubrique === v.id_rubrique)
+            );
+
+            await sendNewSolveMessage(user, new_solves, user.score - previous_data.score);
+        }
+
+        cache[name] = user;
     }
 
-    data[name] = d;
+    data[name] = user;
 }
 
 await sendLeaderboardMessage(Object.values(data));

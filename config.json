@@ -2,5 +2,6 @@
     "cache_file": ".cache",
     "rootmeAPIKey": "",
     "usernames": ["Tenclea"],
-    "webhook_url": ""
+    "webhook_url": "",
+    "webhook_thread_id": ""
 }
