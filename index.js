@@ -47,7 +47,12 @@ async function getUserData(user_id) {
         "https://api.www.root-me.org/auteurs/" + user_id,
         { headers: { cookie: 'api_key=' + config.rootmeAPIKey } }
     ).then(async r => {
-        const json = await r.json();
+        const text = await r.text();
+
+        let json;
+        try { json = JSON.parse(text); }
+        catch { throw new Error("Invalid response body: " + text); }
+
         if (Array.isArray(json) && json[0]?.error) {
             throw new Error(json[0].error.message);
         }
