@@ -136,7 +136,7 @@ async function sendNewSolveMessage(user, solves, score_gained) {
     });
 }
 
-console.log("Script started!");
+const start_time = new Date().getTime();
 
 const data = {};
 for (const username of config.usernames) {
@@ -176,4 +176,4 @@ for (const username of config.usernames) {
 
 await sendLeaderboardMessage(Object.values(data));
 writeFileSync(config.cache_file, JSON.stringify(cache), 'utf8');
-console.log("Script completed!");
+console.log(`Script completed in ${(new Date().getTime() - start_time) / 1000}s!`);
